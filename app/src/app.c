@@ -334,8 +334,6 @@ uint32_t g_app_time_us;
  * point it is requested, even if a previous instruction asked for the value
  * from the same object.
  */
-volatile uint32_t g_app_tick_cnt;
-
 task_dta_t task_dta_list[TASK_QTY];
 
 /********************** external functions definition ************************/
@@ -348,10 +346,7 @@ task_dta_t task_dta_list[TASK_QTY];
  * when the function is called (i.e. when the program control comes to the
  * function).
  */
-void app_init(void)
-{
-	uint32_t index;
-
+void app_init(void) {
 	/* Print out: Application Initialized */
 	LOGGER_LOG("\n");
 	LOGGER_LOG("%s is running - Tick [mS] = %lu\r\n", GET_NAME(app_init), HAL_GetTick());
@@ -365,7 +360,7 @@ void app_init(void)
 	//LOGGER_LOG(" %s = %lu\n", GET_NAME(g_app_cnt), g_app_cnt);
 
 	/* Go through the task arrays */
-	for (index = 0; TASK_QTY > index; index++)
+	for (uint32_t index = 0; TASK_QTY > index; index++)
 	{
 		/* C Functions (https://www.geeksforgeeks.org/) */
 		/*
@@ -383,74 +378,43 @@ void app_init(void)
 	cycle_counter_init();
 }
 
-void app_update(void)
-{
-	uint32_t index;
-	uint32_t cycle_counter;
-	uint32_t cycle_counter_time_us;
+void app_update(void) {
+	/* Update App Counter */
+	g_app_cnt++;
+	g_app_time_us = 0;
 
-	/* Check if it's time to run tasks */
-	if (G_APP_TICK_CNT_INI < g_app_tick_cnt)
-    {
-    	g_app_tick_cnt--;
+	/* Print out: Application execution counter */
+	//LOGGER_LOG(" %s = %lu\r\n", GET_NAME(g_app_cnt), g_app_cnt);
 
-    	/* Update App Counter */
-    	g_app_cnt++;
-    	g_app_time_us = 0;
+	/* Go through the task arrays */
+	for (uint32_t index = 0; TASK_QTY > index; index++)
+	{
+		//HAL_GPIO_TogglePin(LED_A_PORT, LED_A_PIN);
+		cycle_counter_reset();
 
-		/* Print out: Application execution counter */
-		//LOGGER_LOG(" %s = %lu\r\n", GET_NAME(g_app_cnt), g_app_cnt);
+		/* C Functions (https://www.geeksforgeeks.org/) */
+		/*
+		 * A function call is a statement that instructs the compiler to execute
+		 * the function.
+		 * We use the function name and parameters in the function call.
+		 */
+		/* Run task_x_update */
+		(*task_cfg_list[index].task_update)(task_cfg_list[index].parameters);
 
-		/* Go through the task arrays */
-		for (index = 0; TASK_QTY > index; index++)
+		uint32_t cycle_counter_time_us = cycle_counter_time_us();
+		//HAL_GPIO_TogglePin(LED_A_PORT, LED_A_PIN);
+
+		/* Update variables */
+		g_app_time_us += cycle_counter_time_us;
+
+		if (task_dta_list[index].WCET < cycle_counter_time_us)
 		{
-			//HAL_GPIO_TogglePin(LED_A_PORT, LED_A_PIN);
-			cycle_counter_reset();
-
-			/* C Functions (https://www.geeksforgeeks.org/) */
-			/*
-			 * A function call is a statement that instructs the compiler to execute
-			 * the function.
-			 * We use the function name and parameters in the function call.
-			 */
-			/* Run task_x_update */
-			(*task_cfg_list[index].task_update)(task_cfg_list[index].parameters);
-
-			cycle_counter = cycle_counter_get();
-			cycle_counter_time_us = cycle_counter_time_us();
-			//HAL_GPIO_TogglePin(LED_A_PORT, LED_A_PIN);
-
-			/* Update variables */
-			g_app_time_us += cycle_counter_time_us;
-
-			if (task_dta_list[index].WCET < cycle_counter_time_us)
-			{
-				task_dta_list[index].WCET = cycle_counter_time_us;
-			}
-				
-			/* Print out: Cycle Counter */
-			//LOGGER_LOG(" %s: %lu - %s: %lu uS\r\n", GET_NAME(cycle_counter), cycle_counter, GET_NAME(cycle_counter_time_us), cycle_counter_time_us);
-			//LOGGER_LOG(" %s: %lu uS\r\n", GET_NAME(g_app_time_us), g_app_time_us);
+			task_dta_list[index].WCET = cycle_counter_time_us;
 		}
-    }
+
+		/* Print out: Cycle Counter */
+		//LOGGER_LOG(" %s: %lu - %s: %lu uS\r\n", GET_NAME(cycle_counter), cycle_counter, GET_NAME(cycle_counter_time_us), cycle_counter_time_us);
+		//LOGGER_LOG(" %s: %lu uS\r\n", GET_NAME(g_app_time_us), g_app_time_us);
+	}
 }
-
-/* Callbacks in C (https://www.geeksforgeeks.org/) */
-/*
- * A callback is any executable code that is passed as an argument to another
- * code, which is expected to call back (execute) the argument at a given time.
- * In simple language, If a reference of a function is passed to another
- * function as an argument to call it, then it will be called a Callback
- * function.
- */
-
-void HAL_SYSTICK_Callback(void)
-{
-	g_app_tick_cnt++;
-
-
-
-	//HAL_GPIO_TogglePin(LED_A_PORT, LED_A_PIN);
-}
-
 /********************** end of file ******************************************/

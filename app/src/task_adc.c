@@ -46,29 +46,59 @@
 /* Application & Tasks includes. */
 #include "board.h"
 #include "app.h"
+#include "task_adc.h"
+#include "task_pwm_interface.h"
+#include "task_pwm.h"
 
 /********************** macros and definitions *******************************/
 
 
 /********************** internal data declaration ****************************/
+uint32_t tickstart;
 
 /********************** internal functions declaration ***********************/
+HAL_StatusTypeDef ADC_Poll_Read(uint16_t *value);
 
 /********************** internal data definition *****************************/
 const char *p_task_adc 		= "Task ADC";
 
 /********************** external data declaration *****************************/
+extern ADC_HandleTypeDef hadc1;
 
 /********************** external functions definition ************************/
-void task_adc_init(void *parameters)
-{
+void task_adc_init(void *parameters) {
+	tickstart = HAL_GetTick();
+
+	init_queue_event_task_pwm();
+
 	/* Print out: Task Initialized */
 	LOGGER_LOG("  %s is running - %s\r\n", GET_NAME(task_adc_init), p_task_adc);
 
+
+
 }
 
-void task_adc_update(void *parameters)
-{
+void task_adc_update(void *parameters) {
+	uint16_t value;
+
+	if (HAL_OK == ADC_Poll_Read(&value)) {
+		put_event_task_pwm(value);
+	} else {
+		LOGGER_LOG("error\n");
+	}
+
+	return;
+}
+
+HAL_StatusTypeDef ADC_Poll_Read(uint16_t *value) {
+	HAL_StatusTypeDef res = HAL_ADC_Start(&hadc1);
+	if (HAL_OK == res) {
+		res = HAL_ADC_PollForConversion(&hadc1, 0);
+		if (HAL_OK == res) {
+			*value = HAL_ADC_GetValue(&hadc1);
+		}
+	}
+	return res;
 }
 
 /********************** end of file ******************************************/

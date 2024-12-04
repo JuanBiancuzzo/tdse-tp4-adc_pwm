@@ -52,9 +52,11 @@ extern "C" {
 /********************** external data declaration ****************************/
 extern uint32_t g_task_b_cnt;
 
+
 /********************** external functions declaration ***********************/
 void task_pwm_init(void *parameters);
 void task_pwm_update(void *parameters);
+void modificar_valor(uint16_t valor);
 
 /********************** End of CPP guard *************************************/
 #ifdef __cplusplus

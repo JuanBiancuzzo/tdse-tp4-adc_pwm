@@ -46,29 +46,55 @@
 /* Application & Tasks includes. */
 #include "board.h"
 #include "app.h"
+#include "task_pwm_interface.h"
 
 /********************** macros and definitions *******************************/
+#define DELAY_TICKS 4
+#define STEP 100
+#define PERIOD 4096 // 2^12
 
 /********************** internal data declaration ****************************/
 
 /********************** internal functions declaration ***********************/
+void setPWM(TIM_HandleTypeDef timer, uint32_t channel, uint16_t period, uint16_t pulse);
 
 /********************** internal data definition *****************************/
 const char *p_task_pwm 		= "Task PWM";
 
 /********************** external data declaration *****************************/
+extern TIM_HandleTypeDef htim3;
 
 
 /********************** external functions definition ************************/
-void task_pwm_init(void *parameters)
-{
+void task_pwm_init(void *parameters) {
 	/* Print out: Task Initialized */
 	LOGGER_LOG("  %s is running - %s\r\n", GET_NAME(task_pwm_init), p_task_pwm);
 }
 
-void task_pwm_update(void *parameters)
-{
 
+void task_pwm_update(void *parameters) {
+	if (!any_event_task_pwm()) {
+		return;
+	}
+
+	uint16_t valor_actual = get_event_task_pwm();
+	// Dividimos por 3.3 para que el rango de tensiones de salida sea 0 a 1V
+	setPWM(htim3, TIM_CHANNEL_1, PERIOD, valor_actual / 3.3f);
+}
+
+void setPWM(TIM_HandleTypeDef timer, uint32_t channel, uint16_t period, uint16_t pulse) {
+	HAL_TIM_PWM_Stop(&timer, channel);
+	TIM_OC_InitTypeDef sConfigOC;
+	timer.Init.Period = period;
+	HAL_TIM_PWM_Init(&timer);
+
+	sConfigOC.OCMode = TIM_OCMODE_PWM1;
+	sConfigOC.Pulse = pulse;
+	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+	sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+	HAL_TIM_PWM_ConfigChannel(&timer, &sConfigOC, channel);
+
+	HAL_TIM_PWM_Start(&timer, channel);
 }
 
 /********************** end of file ******************************************/
